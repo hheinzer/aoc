@@ -1,0 +1,3 @@
+[submodule "2024/cdsa"]
+	path = 2024/cdsa
+	url = git@github.com:hheinzer/cdsa.git
