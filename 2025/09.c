@@ -16,26 +16,66 @@ static long compute_area(long lhs, long rhs, const Tile *tile)
     return delta_x * delta_y;
 }
 
-typedef struct {
-    long num;
-    long beg[NUM];
-    long end[NUM];
-} Edges;
-
-static long count_hits(long tile, const Edges *edges)
+static int is_inside(double center_x, double center_y, const Tile *tile, long num)
 {
-    long count = 0;
-    for (long i = 0; i < edges->num; i++) {
-        if (edges->beg[i] <= tile && tile < edges->end[i]) {
-            count += 1;
+    long crossings = 0;
+    for (long i = 0; i < num; i++) {
+        long next = (i + 1) % num;
+        long x1 = tile[i].x;
+        long y1 = tile[i].y;
+        long x2 = tile[next].x;
+        long y2 = tile[next].y;
+        if (x1 == x2) {
+            double min_y = y1 < y2 ? y1 : y2;
+            double max_y = y1 > y2 ? y1 : y2;
+            if (x1 > center_x && min_y <= center_y && center_y < max_y) {
+                crossings++;
+            }
         }
     }
-    return count;
+    return (crossings % 2) != 0;
 }
 
-static bool is_inside(Tile tile, const Edges *horizontal, const Edges *vertical)
+static int is_valid(long lhs, long rhs, const Tile *tile, long num)
 {
-    return (count_hits(tile.x, horizontal) % 2 == 0) && (count_hits(tile.y, vertical) % 2 == 0);
+    long min_x = tile[lhs].x < tile[rhs].x ? tile[lhs].x : tile[rhs].x;
+    long max_x = tile[lhs].x > tile[rhs].x ? tile[lhs].x : tile[rhs].x;
+    long min_y = tile[lhs].y < tile[rhs].y ? tile[lhs].y : tile[rhs].y;
+    long max_y = tile[lhs].y > tile[rhs].y ? tile[lhs].y : tile[rhs].y;
+
+    for (long i = 0; i < num; i++) {
+        long next = (i + 1) % num;
+        long x1 = tile[i].x;
+        long y1 = tile[i].y;
+        long x2 = tile[next].x;
+        long y2 = tile[next].y;
+        if (x1 == x2) {
+            long edge_min_y = y1 < y2 ? y1 : y2;
+            long edge_max_y = y1 > y2 ? y1 : y2;
+            if (min_x < x1 && x1 < max_x && edge_max_y > min_y && edge_min_y < max_y) {
+                return 0;
+            }
+            if (min_y == max_y && min_x < x1 && x1 < max_x && edge_min_y < min_y &&
+                min_y < edge_max_y) {
+                return 0;
+            }
+        }
+        else {
+            long edge_min_x = x1 < x2 ? x1 : x2;
+            long edge_max_x = x1 > x2 ? x1 : x2;
+            if (min_y < y1 && y1 < max_y && edge_max_x > min_x && edge_min_x < max_x) {
+                return 0;
+            }
+            if (min_x == max_x && min_y < y1 && y1 < max_y && edge_min_x < min_x &&
+                min_x < edge_max_x) {
+                return 0;
+            }
+        }
+    }
+
+    double center_x = (min_x + max_x) / 2.0;
+    double center_y = (min_y + max_y) / 2.0;
+    return is_inside(center_x, center_y, tile, num);
 }
 
 int main(void)
@@ -43,7 +83,7 @@ int main(void)
     Tile tile[NUM];
     long num = 0;
 
-    FILE *file = fopen("test/09.txt", "r");
+    FILE *file = fopen("input/09.txt", "r");
     assert(file);
 
     char line[128];
@@ -53,31 +93,19 @@ int main(void)
     }
     fclose(file);
 
-    long max_area = 0;
+    long max_area1 = 0;
+    long max_area2 = 0;
     for (long i = 0; i < num; i++) {
-        for (long j = 0; j < num; j++) {
+        for (long j = i + 1; j < num; j++) {
             long area = compute_area(i, j, tile);
-            if (area > max_area) {
-                max_area = area;
+            if (area > max_area1) {
+                max_area1 = area;
+            }
+            if (area > max_area2 && is_valid(i, j, tile, num)) {
+                max_area2 = area;
             }
         }
     }
-    printf("%ld\n", max_area);
-
-    Edges horizontal;
-    Edges vertical;
-    for (long i = 0; i < num; i++) {
-        long beg = i;
-        long end = (i + 1) % num;
-        if (tile[beg].y == tile[end].y) {
-            horizontal.beg[horizontal.num] = beg;
-            horizontal.end[horizontal.num] = end;
-            horizontal.num += 1;
-        }
-        else {
-            vertical.beg[vertical.num] = beg;
-            vertical.end[vertical.num] = end;
-            vertical.num += 1;
-        }
-    }
+    printf("%ld\n", max_area1);
+    printf("%ld\n", max_area2);
 }
